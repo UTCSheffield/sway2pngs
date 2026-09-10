@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 from typing import Sequence
 
 DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
-DEFAULT_WAIT_MS = 1000
+DEFAULT_WAIT_MS = 1500
 DEFAULT_TIMEOUT_MS = 30000
+
+# Some Sways navigate via a numbered section menu (a carousel) rather than a
+# scrollable page. The toggle opens a panel of "Section N of TOTAL" links.
+SECTION_NAV_TOGGLE_SELECTOR = '[aria-label="Navigate to different sections in this Sway"]'
+SECTION_LABEL_PATTERN = re.compile(r"^Section \d+ of (\d+)$")
 
 
 def build_capture_positions(total_height: int, viewport_height: int) -> list[int]:
@@ -23,18 +29,39 @@ def build_capture_positions(total_height: int, viewport_height: int) -> list[int
     return positions
 
 
-def capture_page_screenshots(page, output_dir: Path, prefix: str, wait_ms: int) -> list[Path]:
-    output_dir.mkdir(parents=True, exist_ok=True)
+def _count_sway_sections(page) -> int | None:
+    nav_toggle = page.query_selector(SECTION_NAV_TOGGLE_SELECTOR)
+    if nav_toggle is None:
+        return None
 
-    total_height = int(page.evaluate("() => document.documentElement.scrollHeight"))
-    viewport_height = int(page.evaluate("() => window.innerHeight"))
+    nav_toggle.click()
+    page.wait_for_timeout(300)
 
+    for section in page.query_selector_all('[aria-label^="Section "]'):
+        match = SECTION_LABEL_PATTERN.match(section.get_attribute("aria-label") or "")
+        if match:
+            return int(match.group(1))
+
+    return None
+
+
+def _capture_by_section(
+    page, output_dir: Path, prefix: str, wait_ms: int, section_count: int
+) -> list[Path]:
     captures: list[Path] = []
-    for index, scroll_y in enumerate(
-        build_capture_positions(total_height, viewport_height),
-        start=1,
-    ):
-        page.evaluate("(value) => window.scrollTo(0, value)", scroll_y)
+
+    for index in range(1, section_count + 1):
+        section_selector = f'[aria-label="Section {index} of {section_count}"]'
+        section_link = page.query_selector(section_selector)
+        if section_link is None or not section_link.is_visible():
+            # Clicking a section closes the nav panel, so reopen it for the next one.
+            nav_toggle = page.query_selector(SECTION_NAV_TOGGLE_SELECTOR)
+            if nav_toggle is not None:
+                nav_toggle.click()
+                page.wait_for_timeout(300)
+            section_link = page.query_selector(section_selector)
+
+        section_link.click()
         if wait_ms:
             page.wait_for_timeout(wait_ms)
 
@@ -45,7 +72,47 @@ def capture_page_screenshots(page, output_dir: Path, prefix: str, wait_ms: int) 
     return captures
 
 
+def _capture_by_scroll(page, output_dir: Path, prefix: str, wait_ms: int) -> list[Path]:
+    viewport_height = int(page.evaluate("() => window.innerHeight"))
+
+    captures: list[Path] = []
+    scroll_y = 0
+    index = 1
+    while True:
+        page.evaluate("(value) => window.scrollTo(0, value)", scroll_y)
+        if wait_ms:
+            page.wait_for_timeout(wait_ms)
+
+        # Re-measured each step since Sway lazy-loads more content as you scroll down.
+        total_height = int(page.evaluate("() => document.documentElement.scrollHeight"))
+
+        output_path = output_dir / f"{prefix}-{index:03d}.png"
+        page.screenshot(path=str(output_path))
+        captures.append(output_path)
+
+        max_scroll = max(total_height - viewport_height, 0)
+        if scroll_y >= max_scroll:
+            break
+
+        scroll_y = min(scroll_y + viewport_height, max_scroll)
+        index += 1
+
+    return captures
+
+
+def capture_page_screenshots(page, output_dir: Path, prefix: str, wait_ms: int) -> list[Path]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if hasattr(page, "query_selector"):
+        section_count = _count_sway_sections(page)
+        if section_count:
+            return _capture_by_section(page, output_dir, prefix, wait_ms, section_count)
+
+    return _capture_by_scroll(page, output_dir, prefix, wait_ms)
+
+
 def run_capture(args: argparse.Namespace) -> list[Path]:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
@@ -59,6 +126,10 @@ def run_capture(args: argparse.Namespace) -> list[Path]:
             )
             page.emulate_media(media="screen")
             page.goto(args.url, wait_until="load", timeout=args.timeout_ms)
+            try:
+                page.wait_for_load_state("networkidle", timeout=args.timeout_ms)
+            except PlaywrightTimeoutError:
+                pass
 
             return capture_page_screenshots(
                 page=page,
