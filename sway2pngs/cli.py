@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import re
+from datetime import date
 from pathlib import Path
 from typing import Sequence
 
@@ -9,11 +10,17 @@ DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
 DEFAULT_WAIT_MS = 1500
 DEFAULT_TIMEOUT_MS = 30000
+DEFAULT_ZOOM = 1.25
 
 # Some Sways navigate via a numbered section menu (a carousel) rather than a
 # scrollable page. The toggle opens a panel of "Section N of TOTAL" links.
 SECTION_NAV_TOGGLE_SELECTOR = '[aria-label="Navigate to different sections in this Sway"]'
 SECTION_LABEL_PATTERN = re.compile(r"^Section \d+ of (\d+)$")
+
+
+def build_default_prefix(page) -> str:
+    title = re.sub(r"[^A-Za-z0-9]+", "-", page.title()).strip("-") or "sway"
+    return f"{title}-{date.today().isoformat()}-slide"
 
 
 def build_capture_positions(total_height: int, viewport_height: int) -> list[int]:
@@ -120,9 +127,15 @@ def run_capture(args: argparse.Namespace) -> list[Path]:
         browser = browser_launcher.launch(headless=args.headless)
 
         try:
+            # Mimic browser zoom (Ctrl +/-): shrink the CSS viewport and scale
+            # the device pixel ratio back up so the final screenshot stays
+            # width x height while Sway's responsive layout renders larger.
             page = browser.new_page(
-                viewport={"width": args.width, "height": args.height},
-                device_scale_factor=1,
+                viewport={
+                    "width": round(args.width / args.zoom),
+                    "height": round(args.height / args.zoom),
+                },
+                device_scale_factor=args.zoom,
             )
             page.emulate_media(media="screen")
             page.goto(args.url, wait_until="load", timeout=args.timeout_ms)
@@ -131,10 +144,12 @@ def run_capture(args: argparse.Namespace) -> list[Path]:
             except PlaywrightTimeoutError:
                 pass
 
+            prefix = args.prefix or build_default_prefix(page)
+
             return capture_page_screenshots(
                 page=page,
                 output_dir=args.output_dir,
-                prefix=args.prefix,
+                prefix=prefix,
                 wait_ms=args.wait_ms,
             )
         finally:
@@ -155,8 +170,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--prefix",
-        default="slide",
-        help="Filename prefix for each captured image",
+        default=None,
+        help="Filename prefix for each captured image (default: page title-date-slide)",
     )
     parser.add_argument(
         "--browser",
@@ -181,6 +196,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_WAIT_MS,
         help="Delay after page load and each scroll before capturing",
+    )
+    parser.add_argument(
+        "--zoom",
+        type=float,
+        default=DEFAULT_ZOOM,
+        help="Browser zoom factor applied before capturing, e.g. 1.5 for 150%%",
     )
     parser.add_argument(
         "--timeout-ms",

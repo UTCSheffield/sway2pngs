@@ -3,7 +3,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from sway2pngs.cli import build_capture_positions, capture_page_screenshots, main
+from sway2pngs.cli import (
+    build_capture_positions,
+    build_default_prefix,
+    capture_page_screenshots,
+    main,
+)
 
 
 class FakePage:
@@ -39,6 +44,17 @@ class BuildCapturePositionsTests(unittest.TestCase):
 
     def test_steps_by_viewport_and_includes_last_partial_screen(self) -> None:
         self.assertEqual(build_capture_positions(2500, 1080), [0, 1080, 1420])
+
+
+class DefaultPrefixTests(unittest.TestCase):
+    def test_builds_safe_title_date_and_slide_prefix(self) -> None:
+        class Page:
+            def title(self) -> str:
+                return "Opportunities: Bulletin / 2026"
+
+        prefix = build_default_prefix(Page())
+
+        self.assertRegex(prefix, r"^Opportunities-Bulletin-2026-\d{4}-\d{2}-\d{2}-slide$")
 
 
 class CapturePageScreenshotsTests(unittest.TestCase):

@@ -8,8 +8,10 @@ This repository now includes a small Playwright-based CLI that:
 
 - opens a Sway in a real browser
 - uses a 1920x1080 viewport by default
-- scrolls through the page a viewport at a time
-- saves each view as a numbered PNG
+- navigates through the Sway's numbered section menu one section at a time
+  (falling back to scrolling a viewport at a time for Sways without a section menu)
+- saves each view as a numbered PNG, using `Page-Title-YYYY-MM-DD-slide-001.png`
+  by default
 
 ## Usage
 
@@ -34,3 +36,5 @@ python -m sway2pngs "https://sway.cloud.microsoft/your-sway-id" \
   --prefix section \
   --wait-ms 1500
 ```
+
+Use `--prefix` to choose a different filename prefix; numbering is appended automatically.
