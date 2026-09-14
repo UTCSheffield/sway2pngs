@@ -12,6 +12,7 @@ This repository now includes a small Playwright-based CLI that:
   (falling back to scrolling a viewport at a time for Sways without a section menu)
 - saves each view as a numbered PNG, using `Page-Title-YYYY-MM-DD-slide-001.png`
   by default
+- creates a ZIP archive containing the captured PNGs in the same output directory
 
 ## Usage
 
@@ -38,3 +39,4 @@ python -m sway2pngs "https://sway.cloud.microsoft/your-sway-id" \
 ```
 
 Use `--prefix` to choose a different filename prefix; numbering is appended automatically.
+The matching ZIP archive is written beside the PNGs, for example `section.zip`.

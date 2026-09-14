@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import zipfile
 from datetime import date
 from pathlib import Path
 from typing import Sequence
@@ -118,6 +119,22 @@ def capture_page_screenshots(page, output_dir: Path, prefix: str, wait_ms: int) 
     return _capture_by_scroll(page, output_dir, prefix, wait_ms)
 
 
+def zip_captures(captures: Sequence[Path]) -> Path:
+    if not captures:
+        raise ValueError("at least one capture is required")
+
+    first_capture = captures[0]
+    first_capture.parent.mkdir(parents=True, exist_ok=True)
+    archive_stem = re.sub(r"-\d{3}$", "", first_capture.stem)
+    archive_path = first_capture.parent / f"{archive_stem}.zip"
+
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for capture in captures:
+            archive.write(capture, arcname=capture.name)
+
+    return archive_path
+
+
 def run_capture(args: argparse.Namespace) -> list[Path]:
     from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
     from playwright.sync_api import sync_playwright
@@ -222,8 +239,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     captures = run_capture(args)
+    archive = zip_captures(captures)
 
     for capture in captures:
         print(capture)
+    print(archive)
 
     return 0

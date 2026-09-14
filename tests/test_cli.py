@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -8,6 +9,7 @@ from sway2pngs.cli import (
     build_default_prefix,
     capture_page_screenshots,
     main,
+    zip_captures,
 )
 
 
@@ -76,6 +78,26 @@ class CapturePageScreenshotsTests(unittest.TestCase):
                 ["sway-001.png", "sway-002.png", "sway-003.png"],
             )
             self.assertTrue(all(path.exists() for path in captures))
+
+
+class ZipCapturesTests(unittest.TestCase):
+    def test_zips_captures_using_their_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir)
+            captures = [
+                output_dir / "sway-001.png",
+                output_dir / "sway-002.png",
+            ]
+            for capture, contents in zip(captures, (b"one", b"two")):
+                capture.write_bytes(contents)
+
+            archive_path = zip_captures(captures)
+
+            self.assertEqual(archive_path, output_dir / "sway.zip")
+            with zipfile.ZipFile(archive_path) as archive:
+                self.assertEqual(archive.namelist(), ["sway-001.png", "sway-002.png"])
+                self.assertEqual(archive.read("sway-001.png"), b"one")
+                self.assertEqual(archive.read("sway-002.png"), b"two")
 
 
 class MainTests(unittest.TestCase):
