@@ -26,7 +26,7 @@ python -m playwright install chromium
 Capture a Sway into `./output`:
 
 ```bash
-python -m sway2pngs "https://sway.cloud.microsoft/your-sway-id"
+python -m sway2pngs "https://sway.cloud.microsoft/KwtjdSNJu9YoNoWc"
 ```
 
 Useful options:
