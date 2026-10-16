@@ -11,7 +11,7 @@ DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
 DEFAULT_WAIT_MS = 1500
 DEFAULT_TIMEOUT_MS = 30000
-DEFAULT_ZOOM = 1.25
+DEFAULT_ZOOM = 1.0
 
 # Some Sways navigate via a numbered section menu (a carousel) rather than a
 # scrollable page. The toggle opens a panel of "Section N of TOTAL" links.
