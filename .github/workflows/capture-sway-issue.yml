@@ -53,6 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -75,3 +76,12 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "Sway capture for issue #${ISSUE_NUMBER}" \
             --notes "Automated Sway capture requested in issue #${ISSUE_NUMBER}."
+
+      - name: Close completed issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue close "$ISSUE_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --comment "Automated Sway capture completed and published as a GitHub Release."
