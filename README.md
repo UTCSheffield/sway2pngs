@@ -54,6 +54,9 @@ as a GitHub Release asset:
 The workflow creates a separate release for each run. Its release tag includes
 the issue number and workflow run, so rerunning a job does not overwrite an
 earlier release.
+Captured PNG and ZIP filenames use the issue title in path-safe form. For
+example, an issue titled `Opportunities Bulletin 20/11/2026` produces names
+beginning `Opportunities-Bulletin-20-11-2026-`.
 
 Before using the workflow, create the `sway-capture` label in the repository
 and allow the workflow token to publish releases:

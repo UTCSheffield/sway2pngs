@@ -34,11 +34,11 @@ jobs:
       - name: Capture slides and create ZIP
         env:
           SWAY_URL: ${{ steps.parse.outputs.url }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           python -m sway2pngs "$SWAY_URL" \
             --output-dir output \
-            --prefix "issue-${ISSUE_NUMBER}"
+            --prefix "$ISSUE_TITLE"
 
       - uses: actions/upload-artifact@v4
         with:

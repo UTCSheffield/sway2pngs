@@ -19,8 +19,12 @@ SECTION_NAV_TOGGLE_SELECTOR = '[aria-label="Navigate to different sections in th
 SECTION_LABEL_PATTERN = re.compile(r"^Section \d+ of (\d+)$")
 
 
+def safe_filename_component(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-") or "sway"
+
+
 def build_default_prefix(page) -> str:
-    title = re.sub(r"[^A-Za-z0-9]+", "-", page.title()).strip("-") or "sway"
+    title = safe_filename_component(page.title())
     return f"{title}-{date.today().isoformat()}-slide"
 
 
@@ -161,7 +165,7 @@ def run_capture(args: argparse.Namespace) -> list[Path]:
             except PlaywrightTimeoutError:
                 pass
 
-            prefix = args.prefix or build_default_prefix(page)
+            prefix = safe_filename_component(args.prefix) if args.prefix else build_default_prefix(page)
 
             return capture_page_screenshots(
                 page=page,

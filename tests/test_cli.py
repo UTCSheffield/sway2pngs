@@ -9,6 +9,7 @@ from sway2pngs.cli import (
     build_default_prefix,
     capture_page_screenshots,
     main,
+    safe_filename_component,
     zip_captures,
 )
 from sway2pngs.issue import extract_sway_url
@@ -50,6 +51,15 @@ class BuildCapturePositionsTests(unittest.TestCase):
 
 
 class DefaultPrefixTests(unittest.TestCase):
+    def test_converts_issue_title_to_a_safe_filename_component(self) -> None:
+        self.assertEqual(
+            safe_filename_component("Opportunities Bulletin 20/11/2026"),
+            "Opportunities-Bulletin-20-11-2026",
+        )
+
+    def test_falls_back_for_empty_or_punctuation_only_titles(self) -> None:
+        self.assertEqual(safe_filename_component(" / "), "sway")
+
     def test_builds_safe_title_date_and_slide_prefix(self) -> None:
         class Page:
             def title(self) -> str:
@@ -128,18 +138,20 @@ class MainTests(unittest.TestCase):
             Path("/tmp/output/slide-001.png"),
             Path("/tmp/output/slide-002.png"),
         ]
+        archive_path = Path("/tmp/output/slide.zip")
 
         with patch("sway2pngs.cli.run_capture", return_value=capture_paths) as run_capture:
-            with patch("builtins.print") as print_mock:
-                exit_code = main(
-                    [
-                        "https://example.com",
-                        "--output-dir",
-                        "/tmp/output",
-                        "--wait-ms",
-                        "0",
-                    ]
-                )
+            with patch("sway2pngs.cli.zip_captures", return_value=archive_path):
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(
+                        [
+                            "https://example.com",
+                            "--output-dir",
+                            "/tmp/output",
+                            "--wait-ms",
+                            "0",
+                        ]
+                    )
 
         self.assertEqual(exit_code, 0)
         run_capture.assert_called_once()
