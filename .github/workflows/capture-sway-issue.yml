@@ -42,10 +42,11 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sway-capture-${{ github.run_id }}-${{ github.run_attempt }}
+          name: sway-capture-${{ github.run_id }}
           path: output/*.zip
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 
   publish:
     needs: capture
@@ -55,7 +56,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: sway-capture-${{ github.run_id }}-${{ github.run_attempt }}
+          name: sway-capture-${{ github.run_id }}
           path: release-assets
 
       - name: Create release with ZIP asset
