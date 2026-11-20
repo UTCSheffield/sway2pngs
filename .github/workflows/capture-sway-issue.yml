@@ -71,5 +71,6 @@ jobs:
 
           tag="sway-capture-issue-${ISSUE_NUMBER}-run-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}"
           gh release create "$tag" "$archive" \
+            --repo "$GITHUB_REPOSITORY" \
             --title "Sway capture for issue #${ISSUE_NUMBER}" \
             --notes "Automated Sway capture requested in issue #${ISSUE_NUMBER}."
