@@ -1,0 +1,75 @@
+name: Capture Sway from issue
+
+on:
+  issues:
+    types: [labeled]
+
+permissions: {}
+
+jobs:
+  capture:
+    if: github.event.label.name == 'sway-capture'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Validate Sway URL from issue
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body || '' }}
+        run: python -m sway2pngs.issue
+
+      - name: Capture slides and create ZIP
+        env:
+          SWAY_URL: ${{ steps.parse.outputs.url }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          python -m sway2pngs "$SWAY_URL" \
+            --output-dir output \
+            --prefix "issue-${ISSUE_NUMBER}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sway-capture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/*.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sway-capture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-assets
+
+      - name: Create release with ZIP asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          archive=$(find release-assets -maxdepth 1 -type f -name '*.zip' -print -quit)
+          if [ -z "$archive" ]; then
+            echo "::error::Capture ZIP was not found"
+            exit 1
+          fi
+
+          tag="sway-capture-issue-${ISSUE_NUMBER}-run-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$tag" "$archive" \
+            --title "Sway capture for issue #${ISSUE_NUMBER}" \
+            --notes "Automated Sway capture requested in issue #${ISSUE_NUMBER}."
