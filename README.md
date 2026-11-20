@@ -40,3 +40,28 @@ python -m sway2pngs "https://sway.cloud.microsoft/your-sway-id" \
 
 Use `--prefix` to choose a different filename prefix; numbering is appended automatically.
 The matching ZIP archive is written beside the PNGs, for example `section.zip`.
+
+## Capture from a GitHub issue
+
+The `Capture Sway from issue` workflow can capture a Sway and publish its ZIP
+as a GitHub Release asset:
+
+1. Create an issue containing exactly one HTTPS URL from
+   `sway.cloud.microsoft`.
+2. Add the `sway-capture` label to the issue.
+3. When the workflow completes, find the ZIP under the repository's Releases.
+
+The workflow creates a separate release for each run. Its release tag includes
+the issue number and workflow run, so rerunning a job does not overwrite an
+earlier release.
+
+Before using the workflow, create the `sway-capture` label in the repository
+and allow the workflow token to publish releases:
+
+1. In the repository, open **Settings → Actions → General**.
+2. Under **Workflow permissions**, select **Read and write permissions** and
+   save. The workflow limits this to `contents: write` in the release job;
+   the capture job only has `contents: read`.
+
+Only add the label to issues you intend to process. The workflow rejects issue
+bodies that do not contain exactly one URL on the Sway domain.

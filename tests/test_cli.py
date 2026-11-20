@@ -11,6 +11,7 @@ from sway2pngs.cli import (
     main,
     zip_captures,
 )
+from sway2pngs.issue import extract_sway_url
 
 
 class FakePage:
@@ -98,6 +99,27 @@ class ZipCapturesTests(unittest.TestCase):
                 self.assertEqual(archive.namelist(), ["sway-001.png", "sway-002.png"])
                 self.assertEqual(archive.read("sway-001.png"), b"one")
                 self.assertEqual(archive.read("sway-002.png"), b"two")
+
+
+class ExtractSwayUrlTests(unittest.TestCase):
+    def test_extracts_a_sway_url_from_issue_text(self) -> None:
+        url = "https://sway.cloud.microsoft/example-id"
+
+        self.assertEqual(
+            extract_sway_url(f"Please capture this Sway: {url}"),
+            url,
+        )
+
+    def test_rejects_urls_outside_the_sway_domain(self) -> None:
+        with self.assertRaisesRegex(ValueError, "must be an HTTPS link"):
+            extract_sway_url("https://example.com/sway")
+
+    def test_requires_exactly_one_url(self) -> None:
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            extract_sway_url(
+                "https://sway.cloud.microsoft/one "
+                "https://sway.cloud.microsoft/two"
+            )
 
 
 class MainTests(unittest.TestCase):
